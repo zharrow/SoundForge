@@ -11,6 +11,7 @@ use rmcp::{
     ServerHandler, ServiceExt, schemars, tool, tool_handler, tool_router, transport::stdio,
 };
 use serde::Deserialize;
+use sound_forge::recipe::GENERATOR;
 use sound_forge::{ExportOptions, Report, Sound, Workspace, base64, presets};
 
 type ToolResult = Result<CallToolResult, ErrorData>;
@@ -61,6 +62,20 @@ struct FileName {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct RecipeName {
+    /// Nom du son : le nom de base, ou celui d'une variante (nom_02), avec ou sans extension.
+    filename: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct RenderRecipe {
+    /// Nom du son dont on rejoue la recette (nom de base ou d'une variante).
+    filename: String,
+    /// Nouveau nom de sortie. Par défaut : le même nom, donc les WAV sont réécrits.
+    new_filename: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct CompareFiles {
     /// Premier WAV, par exemple un SFX.
     first: String,
@@ -75,6 +90,14 @@ fn export_options(variants: Option<u32>, amount: Option<f32>, seed: Option<u64>)
         amount: amount.unwrap_or(defaults.amount),
         seed: seed.unwrap_or(defaults.seed),
     }
+}
+
+/// `nom_01` -> `nom` quand la recette a produit des variantes numérotées.
+fn strip_variant_suffix(file: &str, variants: u32) -> &str {
+    if variants <= 1 {
+        return file;
+    }
+    file.rsplit_once('_').map_or(file, |(base, _)| base)
 }
 
 /// Erreurs d'outil visibles par le modèle, qui peut corriger son appel.
@@ -126,7 +149,8 @@ impl SoundForge {
             .and_then(|sound| {
                 let filename = params.filename.as_deref().unwrap_or(&params.name);
                 let options = export_options(params.variants, params.amount, params.seed);
-                self.workspace.export(&sound, filename, &options)
+                self.workspace
+                    .export_with_recipe(&sound, filename, &options, Some(&params.name))
             })
             .map(|reports| format_reports(&reports));
         text_result(result)
@@ -142,17 +166,74 @@ impl SoundForge {
             .check()
             .and_then(|()| {
                 self.workspace
-                    .export(&params.sound, &params.filename, &options)
+                    .export_with_recipe(&params.sound, &params.filename, &options, None)
             })
             .map(|reports| format_reports(&reports));
         text_result(result)
     }
 
-    #[tool(description = "Liste les WAV présents dans le dossier de travail.")]
+    #[tool(
+        description = "Renvoie la recette JSON d'un son déjà rendu : le son, la graine et \
+        les réglages de variantes. Point de départ pour retoucher un son existant : modifier \
+        `sound` puis le rendre avec render_sound."
+    )]
+    fn get_recipe(&self, Parameters(params): Parameters<RecipeName>) -> ToolResult {
+        text_result(
+            self.workspace
+                .read_recipe(&params.filename)
+                .and_then(|recipe| recipe.to_json()),
+        )
+    }
+
+    #[tool(
+        description = "Rejoue la recette d'un son à l'identique (même graine, mêmes \
+        variantes). Sert à régénérer un son après une mise à jour du moteur, ou à le dupliquer \
+        sous un autre nom."
+    )]
+    fn render_recipe(&self, Parameters(params): Parameters<RenderRecipe>) -> ToolResult {
+        let result = self
+            .workspace
+            .read_recipe(&params.filename)
+            .and_then(|recipe| {
+                let base = recipe
+                    .files
+                    .first()
+                    .and_then(|f| f.strip_suffix(".wav"))
+                    .map(|f| strip_variant_suffix(f, recipe.variants))
+                    .unwrap_or(&params.filename)
+                    .to_owned();
+                let target = params.new_filename.unwrap_or(base);
+                let note = if recipe.generator == GENERATOR {
+                    String::new()
+                } else {
+                    format!(
+                        "\nRecette écrite par {}, rejouée par {GENERATOR} : le son peut différer.",
+                        recipe.generator
+                    )
+                };
+                recipe.sound.check()?;
+                self.workspace
+                    .export_with_recipe(
+                        &recipe.sound,
+                        &target,
+                        &recipe.options(),
+                        recipe.preset.as_deref(),
+                    )
+                    .map(|reports| format_reports(&reports) + &note)
+            });
+        text_result(result)
+    }
+
+    #[tool(description = "Liste les WAV et les recettes (.json) du dossier de travail.")]
     fn list_files(&self) -> ToolResult {
         let files = self.workspace.list_wavs();
+        let recipes = self.workspace.list_recipes();
         let root = self.workspace.root().display();
-        text_result(Ok(format!("Dossier : {root}\n{}", files.join("\n"))))
+        text_result(Ok(format!(
+            "Dossier : {root}\nWAV :\n{}\nRecettes :\n{}",
+            files.join("\n"),
+            recipes.join("\n")
+        )))
     }
 
     #[tool(
@@ -207,7 +288,9 @@ impl SoundForge {
         Workflow : list_presets → get_preset pour partir d'un son existant → modifier le JSON → \
         render_sound → spectrogram pour vérifier visuellement → corriger. Pour les sons joués \
         souvent (pas, coups), générer 3 à 5 variantes. compare_sounds vérifie qu'un SFX ne se \
-        fait pas masquer par la musique. Les fichiers restent dans le dossier de travail."
+        fait pas masquer par la musique. Chaque rendu écrit sa recette (nom.json) à côté des WAV : \
+        get_recipe pour retoucher un son existant, render_recipe pour le refaire à l'identique. \
+        Les fichiers restent dans le dossier de travail."
 )]
 impl ServerHandler for SoundForge {}
 

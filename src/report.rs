@@ -24,6 +24,15 @@ impl Report {
         }
     }
 
+    /// Nom du fichier, sans chemin.
+    pub fn file_name(&self) -> String {
+        self.file
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned()
+    }
+
     /// Résumé sur une ligne, puis la répartition par bandes.
     pub fn detailed(&self) -> String {
         format!("{self}\n{}", self.bands)

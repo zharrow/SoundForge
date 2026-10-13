@@ -36,7 +36,9 @@ Vérifier avec `claude mcp list`, puis dans Claude Code :
 | `get_preset` | JSON complet d'un preset, à modifier |
 | `render_preset` | Rend un preset (avec variantes) |
 | `render_sound` | Rend un son décrit en JSON |
-| `list_files` | WAV du dossier de travail |
+| `list_files` | WAV et recettes du dossier de travail |
+| `get_recipe` | La recette d'un son déjà rendu, pour le retoucher |
+| `render_recipe` | Refait un son à l'identique depuis sa recette |
 | `analyze_sound` | Durée, crête, RMS, énergie sur 7 bandes |
 | `spectrogram` | Image forme d'onde + spectrogramme, pour que Claude « voie » le son |
 | `compare_sounds` | Détecte le masquage entre deux sons (SFX contre musique) |
@@ -65,6 +67,21 @@ sound-forge spectrogram assets/sfx/riser.wav riser.png
   `stinger_victory`, `stinger_boss`
 - **Objets (synthèse modale)** : `wood_knock`, `stone_hit`, `metal_clang`, `bell`, `glass_tap`,
   `bone_knock`
+
+## Recettes
+
+Chaque rendu par le serveur MCP écrit sa **recette** à côté des WAV : `cloche.json` pour
+`cloche.wav`, ou pour `cloche_01.wav`, `cloche_02.wav`… Elle contient le son, la graine, les
+réglages de variantes et la version du moteur. Même binaire + même recette = mêmes fichiers,
+octet pour octet. Une compilation de débogage peut arrondir autrement quelques échantillons
+(un bit de poids faible) : c'est inaudible, mais une comparaison octet par octet le voit.
+
+- retoucher un son : `get_recipe` → modifier `sound` → `render_sound` ;
+- le refaire après une mise à jour du moteur : `render_recipe` (il signale si la recette vient
+  d'une autre version, le son pouvant alors légèrement différer).
+
+Les recettes passent par serde : elles n'existent qu'avec la fonctionnalité `schema`, celle du
+serveur MCP. La CLI, sans dépendance, ne les écrit pas.
 
 ## Format JSON d'un son
 

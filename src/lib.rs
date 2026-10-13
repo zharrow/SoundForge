@@ -16,6 +16,8 @@ pub mod mutate;
 pub mod oscillator;
 pub mod png;
 pub mod presets;
+#[cfg(feature = "schema")]
+pub mod recipe;
 pub mod render;
 pub mod report;
 pub mod resonator;
@@ -31,6 +33,8 @@ pub use envelope::{Adsr, Sweep};
 pub use filter::FilterMode;
 pub use mutate::vary;
 pub use oscillator::Waveform;
+#[cfg(feature = "schema")]
+pub use recipe::Recipe;
 pub use render::{SAMPLE_RATE, render};
 pub use report::Report;
 pub use resonator::{Material, Mode, Resonator};

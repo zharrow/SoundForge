@@ -71,6 +71,54 @@ impl Workspace {
             .collect()
     }
 
+    /// Comme `export`, puis écrit la recette `filename.json` à côté des WAV.
+    #[cfg(feature = "schema")]
+    pub fn export_with_recipe(
+        &self,
+        sound: &Sound,
+        filename: &str,
+        options: &ExportOptions,
+        preset: Option<&str>,
+    ) -> Result<Vec<Report>, String> {
+        let reports = self.export(sound, filename, options)?;
+        let mut recipe = crate::recipe::Recipe::new(sound, preset, options);
+        recipe.files = reports.iter().map(|r| r.file_name()).collect();
+        let path = self.root.join(format!("{filename}.json"));
+        std::fs::write(&path, recipe.to_json()?)
+            .map_err(|e| format!("{} : {e}", path.display()))?;
+        Ok(reports)
+    }
+
+    /// Relit la recette d'un son. Accepte le nom de base ou celui d'une variante (`nom_02`).
+    #[cfg(feature = "schema")]
+    pub fn read_recipe(&self, filename: &str) -> Result<crate::recipe::Recipe, String> {
+        let name = filename
+            .strip_suffix(".json")
+            .or_else(|| filename.strip_suffix(".wav"))
+            .unwrap_or(filename);
+        validate_name(name)?;
+        let candidates = [Some(name), strip_variant(name)];
+        let path = candidates
+            .into_iter()
+            .flatten()
+            .map(|n| self.root.join(format!("{n}.json")))
+            .find(|p| p.is_file())
+            .ok_or_else(|| {
+                format!(
+                    "Pas de recette pour « {name} » dans {} (les sons rendus avant la 0.4 n'en ont pas).",
+                    self.root.display()
+                )
+            })?;
+        let text =
+            std::fs::read_to_string(&path).map_err(|e| format!("{} : {e}", path.display()))?;
+        crate::recipe::Recipe::from_json(&text)
+    }
+
+    /// Noms (sans extension) des recettes présentes dans le dossier, triés.
+    pub fn list_recipes(&self) -> Vec<String> {
+        self.list_with_extension(".json")
+    }
+
     fn write(&self, sound: &Sound, name: &str, seed: u64) -> Result<Report, String> {
         let path = self.root.join(format!("{name}.wav"));
         let samples = render(sound, seed);
@@ -92,13 +140,17 @@ impl Workspace {
 
     /// Noms (sans extension) des WAV présents dans le dossier, triés.
     pub fn list_wavs(&self) -> Vec<String> {
+        self.list_with_extension(".wav")
+    }
+
+    fn list_with_extension(&self, extension: &str) -> Vec<String> {
         let Ok(entries) = std::fs::read_dir(&self.root) else {
             return Vec::new();
         };
         let mut names: Vec<String> = entries
             .filter_map(Result::ok)
             .filter_map(|entry| entry.file_name().into_string().ok())
-            .filter_map(|name| name.strip_suffix(".wav").map(str::to_owned))
+            .filter_map(|name| name.strip_suffix(extension).map(str::to_owned))
             .collect();
         names.sort();
         names
@@ -116,6 +168,14 @@ impl Workspace {
         }
         Ok(path)
     }
+}
+
+/// `nom_02` -> `nom` : le suffixe de variante que pose `export`.
+#[cfg_attr(not(feature = "schema"), allow(dead_code))]
+fn strip_variant(name: &str) -> Option<&str> {
+    let (base, index) = name.rsplit_once('_')?;
+    (index.len() == 2 && index.bytes().all(|b| b.is_ascii_digit()) && !base.is_empty())
+        .then_some(base)
 }
 
 /// Nom de fichier sans chemin : lettres, chiffres, `_` et `-` (empêche toute sortie du dossier).
