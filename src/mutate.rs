@@ -29,6 +29,10 @@ fn vary_layer(layer: &mut Layer, pitch_ratio: f32, time_ratio: f32, amount: f32,
     layer.envelope = layer.envelope.stretched(time_ratio);
     layer.start *= time_ratio;
     layer.gain *= 1.0 + rng.bipolar() * amount * MAX_GAIN_SPREAD;
+    if let Some(resonator) = &mut layer.resonator {
+        // La hauteur suit déjà `pitch` ; l'objet résonne un peu plus ou moins longtemps.
+        resonator.decay *= time_ratio;
+    }
     if let Some(filter) = &mut layer.filter {
         filter.cutoff = filter
             .cutoff

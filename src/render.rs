@@ -42,6 +42,15 @@ struct Voice {
 }
 
 fn render_layer(layer: &Layer, sample_rate: f32, rng: &mut Rng) -> Vec<f32> {
+    let strike = render_strike(layer, sample_rate, rng);
+    match &layer.resonator {
+        Some(resonator) => resonator.process(&strike, layer.pitch.start, sample_rate),
+        None => strike,
+    }
+}
+
+/// La couche elle-même : oscillateurs, filtre, enveloppe. Sous un résonateur, c'est le coup.
+fn render_strike(layer: &Layer, sample_rate: f32, rng: &mut Rng) -> Vec<f32> {
     let count = (layer.envelope.duration() * sample_rate).ceil() as usize;
     let mut voices = make_voices(layer, rng);
     let normalization = 1.0 / (voices.len() as f32).sqrt();

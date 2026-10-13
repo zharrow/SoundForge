@@ -7,7 +7,9 @@ use std::path::PathBuf;
 
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{CallToolResult, ContentBlock, ErrorData};
-use rmcp::{ServerHandler, ServiceExt, schemars, tool, tool_handler, tool_router, transport::stdio};
+use rmcp::{
+    ServerHandler, ServiceExt, schemars, tool, tool_handler, tool_router, transport::stdio,
+};
 use serde::Deserialize;
 use sound_forge::{ExportOptions, Report, Sound, Workspace, base64, presets};
 
@@ -85,12 +87,18 @@ fn text_result(result: Result<String, String>) -> ToolResult {
 
 fn format_reports(reports: &[Report]) -> String {
     let lines: Vec<String> = reports.iter().map(ToString::to_string).collect();
-    format!("{} fichier(s) écrit(s) :\n{}", reports.len(), lines.join("\n"))
+    format!(
+        "{} fichier(s) écrit(s) :\n{}",
+        reports.len(),
+        lines.join("\n")
+    )
 }
 
 #[tool_router]
 impl SoundForge {
-    #[tool(description = "Liste les presets d'effets sonores disponibles, avec une description de chacun.")]
+    #[tool(
+        description = "Liste les presets d'effets sonores disponibles, avec une description de chacun."
+    )]
     fn list_presets(&self) -> ToolResult {
         let lines: Vec<String> = presets::CATALOG
             .iter()
@@ -108,8 +116,10 @@ impl SoundForge {
         text_result(result)
     }
 
-    #[tool(description = "Rend un preset en WAV mono 44,1 kHz dans le dossier de travail, \
-        éventuellement en plusieurs variantes. Renvoie durée, crête, RMS et bande dominante.")]
+    #[tool(
+        description = "Rend un preset en WAV mono 44,1 kHz dans le dossier de travail, \
+        éventuellement en plusieurs variantes. Renvoie durée, crête, RMS et bande dominante."
+    )]
     fn render_preset(&self, Parameters(params): Parameters<RenderPreset>) -> ToolResult {
         let result = presets::by_name(&params.name)
             .ok_or_else(|| format!("Preset inconnu : {}", params.name))
@@ -130,7 +140,10 @@ impl SoundForge {
         let result = params
             .sound
             .check()
-            .and_then(|()| self.workspace.export(&params.sound, &params.filename, &options))
+            .and_then(|()| {
+                self.workspace
+                    .export(&params.sound, &params.filename, &options)
+            })
             .map(|reports| format_reports(&reports));
         text_result(result)
     }
@@ -142,16 +155,24 @@ impl SoundForge {
         text_result(Ok(format!("Dossier : {root}\n{}", files.join("\n"))))
     }
 
-    #[tool(description = "Analyse un WAV : durée, crête, RMS et répartition de l'énergie \
-        sur 7 bandes (sub, basses, bas-médiums, médiums, haut-médiums, présence, air).")]
+    #[tool(
+        description = "Analyse un WAV : durée, crête, RMS et répartition de l'énergie \
+        sur 7 bandes (sub, basses, bas-médiums, médiums, haut-médiums, présence, air)."
+    )]
     fn analyze_sound(&self, Parameters(params): Parameters<FileName>) -> ToolResult {
-        text_result(self.workspace.analyze(&params.filename).map(|r| r.detailed()))
+        text_result(
+            self.workspace
+                .analyze(&params.filename)
+                .map(|r| r.detailed()),
+        )
     }
 
-    #[tool(description = "Image d'un WAV pour le « voir » : forme d'onde en haut, spectrogramme \
+    #[tool(
+        description = "Image d'un WAV pour le « voir » : forme d'onde en haut, spectrogramme \
         en dessous. Temps de gauche à droite. Axe vertical logarithmique de 40 Hz (bas) à 20 kHz \
         (haut), lignes pointillées à 100 Hz, 1 kHz et 10 kHz. Noir = silence, violet puis orange \
-        puis jaune pâle = de plus en plus fort.")]
+        puis jaune pâle = de plus en plus fort."
+    )]
     fn spectrogram(&self, Parameters(params): Parameters<FileName>) -> ToolResult {
         let report = self.workspace.analyze(&params.filename);
         let image = self.workspace.spectrogram_png(&params.filename);
@@ -166,8 +187,10 @@ impl SoundForge {
         })
     }
 
-    #[tool(description = "Compare deux WAV par bandes de fréquences pour détecter le masquage \
-        (un son qui en couvre un autre au mixage), par exemple un SFX contre la musique.")]
+    #[tool(
+        description = "Compare deux WAV par bandes de fréquences pour détecter le masquage \
+        (un son qui en couvre un autre au mixage), par exemple un SFX contre la musique."
+    )]
     fn compare_sounds(&self, Parameters(params): Parameters<CompareFiles>) -> ToolResult {
         let result = self
             .workspace
@@ -192,7 +215,9 @@ impl ServerHandler for SoundForge {}
 async fn main() -> anyhow::Result<()> {
     let root = std::env::var_os("SOUND_OUTPUT_DIR")
         .map_or_else(|| PathBuf::from("sound_output"), PathBuf::from);
-    let server = SoundForge { workspace: Workspace::new(root) };
+    let server = SoundForge {
+        workspace: Workspace::new(root),
+    };
     let service = server.serve(stdio()).await?;
     service.waiting().await?;
     Ok(())

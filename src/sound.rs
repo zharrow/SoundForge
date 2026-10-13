@@ -7,6 +7,7 @@ use crate::effects::{Echo, Effects, Reverb};
 use crate::envelope::{Adsr, Sweep};
 use crate::filter::FilterMode;
 use crate::oscillator::Waveform;
+use crate::resonator::Resonator;
 
 const MAX_LAYERS: usize = 16;
 const MAX_DURATION: f32 = 10.0;
@@ -79,6 +80,10 @@ pub struct Layer {
     /// Décalage de départ de la couche, en secondes.
     #[cfg_attr(feature = "schema", serde(default))]
     pub start: f32,
+    /// Objet qui résonne sous la couche (synthèse modale). La couche devient alors le COUP
+    /// et sa hauteur donne la fondamentale de l'objet.
+    #[cfg_attr(feature = "schema", serde(default))]
+    pub resonator: Option<Resonator>,
 }
 
 fn default_gain() -> f32 {
@@ -96,6 +101,7 @@ impl Layer {
             unison: Unison::default(),
             gain: default_gain(),
             start: 0.0,
+            resonator: None,
         }
     }
 
@@ -129,13 +135,19 @@ impl Layer {
         self
     }
 
+    pub fn resonator(mut self, resonator: Resonator) -> Self {
+        self.resonator = Some(resonator);
+        self
+    }
+
     pub fn start_at(mut self, seconds: f32) -> Self {
         self.start = seconds.max(0.0);
         self
     }
 
+    /// Fin de la couche, queue du résonateur comprise.
     pub fn end_time(&self) -> f32 {
-        self.start + self.envelope.duration()
+        self.start + self.envelope.duration() + self.resonator.as_ref().map_or(0.0, Resonator::tail)
     }
 }
 
@@ -226,6 +238,9 @@ impl Sound {
             .any(|l| l.start < 0.0 || l.envelope.duration() < 0.0)
         {
             return Err("Les durées et décalages doivent être positifs.".into());
+        }
+        for resonator in self.layers.iter().filter_map(|l| l.resonator.as_ref()) {
+            resonator.check()?;
         }
         Ok(())
     }

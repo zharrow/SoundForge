@@ -4,6 +4,7 @@
 use crate::envelope::{Adsr, Sweep};
 use crate::filter::FilterMode::{BandPass, HighPass, LowPass};
 use crate::oscillator::Waveform::{BrownNoise, Saw, Sine, Triangle, WhiteNoise};
+use crate::resonator::{Material, Resonator};
 use crate::sound::{Layer, Sound};
 
 pub struct Preset {
@@ -12,7 +13,7 @@ pub struct Preset {
     build: fn() -> Sound,
 }
 
-pub const CATALOG: [Preset; 14] = [
+pub const CATALOG: [Preset; 20] = [
     preset("jump", "Saut léger : ton qui monte + souffle d'air", jump),
     preset(
         "dash",
@@ -78,6 +79,36 @@ pub const CATALOG: [Preset; 14] = [
         "stinger_boss",
         "Arrivée du boss : impact grave et accord dissonant",
         stinger_boss,
+    ),
+    preset(
+        "wood_knock",
+        "Objet (modal) : toc de bois creux, sec et boisé",
+        wood_knock,
+    ),
+    preset(
+        "stone_hit",
+        "Objet (modal) : pierre ou basalte frappé, choc mat et dense",
+        stone_hit,
+    ),
+    preset(
+        "metal_clang",
+        "Objet (modal) : plaque de métal frappée, résonance qui tremble",
+        metal_clang,
+    ),
+    preset(
+        "bell",
+        "Objet (modal) : cloche, bourdon grave et longue queue",
+        bell,
+    ),
+    preset(
+        "glass_tap",
+        "Objet (modal) : verre, cristal ou nacre effleuré",
+        glass_tap,
+    ),
+    preset(
+        "bone_knock",
+        "Objet (modal) : os ou carapace creuse, toc sourd",
+        bone_knock,
     ),
 ];
 
@@ -399,6 +430,90 @@ fn stinger_boss() -> Sound {
         .drive(1.8)
         .reverb(0.7, 0.5, 0.3)
         .peak_db(-1.0)
+}
+
+// ---------- Objets (synthèse modale) ----------
+//
+// Le COUP est une rafale de bruit de quelques millisecondes : plus elle est courte et
+// brillante, plus le maillet est dur. L'OBJET est le résonateur.
+
+fn strike(attack: f32, decay: f32) -> Layer {
+    Layer::new(WhiteNoise, noise(), Adsr::percussive(attack, decay))
+}
+
+fn wood_knock() -> Sound {
+    let knock = strike(0.0005, 0.006)
+        .filter(LowPass, Sweep::constant(3500.0), 0.2)
+        .resonator(Resonator::new(Material::Wood));
+    Sound::new("wood_knock")
+        .layer(Layer {
+            pitch: Sweep::constant(420.0),
+            ..knock
+        })
+        .peak_db(-3.0)
+}
+
+fn stone_hit() -> Sound {
+    let hit = strike(0.0003, 0.004).resonator(Resonator::new(Material::Stone).brightness(0.6));
+    // Quelques grains qui s'effritent après le choc : c'est ce qui fait lire de la PIERRE
+    // et non un bloc de bois très amorti.
+    let grit = strike(0.0, 0.03)
+        .filter(BandPass, Sweep::constant(2500.0), 0.3)
+        .gain(0.25)
+        .start_at(0.004);
+    Sound::new("stone_hit")
+        .layer(Layer {
+            pitch: Sweep::constant(180.0),
+            ..hit
+        })
+        .layer(grit)
+        .peak_db(-2.0)
+}
+
+fn metal_clang() -> Sound {
+    let clang = strike(0.0002, 0.003).resonator(Resonator::new(Material::Metal).brightness(0.6));
+    Sound::new("metal_clang")
+        .layer(Layer {
+            pitch: Sweep::constant(310.0),
+            ..clang
+        })
+        .peak_db(-3.0)
+}
+
+fn bell() -> Sound {
+    let mallet = strike(0.001, 0.01)
+        .filter(LowPass, Sweep::constant(2000.0), 0.2)
+        .resonator(Resonator::new(Material::Bell));
+    Sound::new("bell")
+        .layer(Layer {
+            pitch: Sweep::constant(midi(72)),
+            ..mallet
+        })
+        .peak_db(-4.0)
+}
+
+fn glass_tap() -> Sound {
+    let tap = strike(0.0002, 0.002)
+        .filter(HighPass, Sweep::constant(2000.0), 0.2)
+        .resonator(Resonator::new(Material::Glass));
+    Sound::new("glass_tap")
+        .layer(Layer {
+            pitch: Sweep::constant(1320.0),
+            ..tap
+        })
+        .peak_db(-6.0)
+}
+
+fn bone_knock() -> Sound {
+    let knock = strike(0.0005, 0.008)
+        .filter(LowPass, Sweep::constant(1800.0), 0.2)
+        .resonator(Resonator::new(Material::Bone));
+    Sound::new("bone_knock")
+        .layer(Layer {
+            pitch: Sweep::constant(260.0),
+            ..knock
+        })
+        .peak_db(-3.0)
 }
 
 #[cfg(test)]

@@ -1,7 +1,8 @@
 //! sound-forge : moteur de synthèse d'effets sonores pour jeux vidéo.
 //!
 //! Un [`Sound`] est fait de couches ([`Layer`]) : oscillateur, balayage de hauteur,
-//! enveloppe, filtre. On les mixe, on applique des effets, puis on exporte en WAV.
+//! enveloppe, filtre, et éventuellement un résonateur modal qui fait de la couche le coup
+//! porté à un objet (bois, pierre, cloche…). On les mixe, on applique des effets, puis on exporte en WAV.
 //! Les modules d'analyse (bandes, spectrogramme) servent à vérifier un son sans l'écouter.
 
 pub mod analysis;
@@ -17,6 +18,7 @@ pub mod png;
 pub mod presets;
 pub mod render;
 pub mod report;
+pub mod resonator;
 pub mod rng;
 pub mod sound;
 pub mod spectrogram;
@@ -31,6 +33,7 @@ pub use mutate::vary;
 pub use oscillator::Waveform;
 pub use render::{SAMPLE_RATE, render};
 pub use report::Report;
+pub use resonator::{Material, Mode, Resonator};
 pub use rng::Rng;
 pub use sound::{Layer, Sound};
 pub use wav::{read_wav, write_wav};

@@ -32,7 +32,7 @@ Vérifier avec `claude mcp list`, puis dans Claude Code :
 
 | Outil | Rôle |
 |---|---|
-| `list_presets` | Liste les 14 presets |
+| `list_presets` | Liste les 20 presets |
 | `get_preset` | JSON complet d'un preset, à modifier |
 | `render_preset` | Rend un preset (avec variantes) |
 | `render_sound` | Rend un son décrit en JSON |
@@ -63,6 +63,8 @@ sound-forge spectrogram assets/sfx/riser.wav riser.png
 - **Interface** : `ui_click`, `ui_confirm`
 - **Transitions musicales** : `riser` (pic à 2 s, soit 1 mesure à 120 BPM), `downlifter`,
   `stinger_victory`, `stinger_boss`
+- **Objets (synthèse modale)** : `wood_knock`, `stone_hit`, `metal_clang`, `bell`, `glass_tap`,
+  `bone_knock`
 
 ## Format JSON d'un son
 
@@ -95,7 +97,35 @@ C'est le format de `get_preset` et `render_sound` :
 - `waveform` : `sine`, `triangle`, `saw`, `{"square": {"duty": 0.5}}`, `white_noise`, `brown_noise`
 - `filter.mode` : `low_pass`, `high_pass`, `band_pass`
 - Champs facultatifs d'une couche : `filter`, `vibrato`, `unison`, `gain` (1), `start` (0)
-- Limites : 16 couches, 10 s, 16 voix d'unisson par couche
+- Champ facultatif `resonator` : voir plus bas
+- Limites : 16 couches, 10 s (queue des résonateurs comprise), 16 voix d'unisson par couche
+
+## Synthèse modale : le coup et l'objet
+
+Un bois, une pierre ou une cloche ne se distinguent pas par la forme d'onde du coup, mais par
+les fréquences auxquelles l'objet vibre ensuite et la vitesse à laquelle chacune s'éteint.
+Ajouter un `resonator` à une couche en fait le **coup** ; le résonateur est l'**objet**.
+La hauteur de la couche (`pitch.start`) donne la fondamentale de l'objet.
+
+```json
+{
+  "waveform": "white_noise",
+  "pitch": { "start": 420, "end": 420, "time": 0 },
+  "envelope": { "attack": 0.0005, "decay": 0.006 },
+  "filter": { "mode": "low_pass", "cutoff": { "start": 3500, "end": 3500, "time": 0 }, "resonance": 0.2 },
+  "resonator": { "material": "wood", "decay": 0.6, "brightness": 0.3, "dry": 0.1 }
+}
+```
+
+- `material` : `wood`, `stone`, `metal`, `bell`, `glass`, `bone`, ou
+  `{"custom": {"modes": [{"ratio": 1, "decay": 0.5, "gain": 1}, …]}}` (32 modes au plus)
+- `decay` (1) : multiplie les durées de résonance. 0.5 = objet étouffé, 2 = objet qui chante
+- `brightness` (0.5) : 0 = sourd, 1 = brillant. Agit sur le gain ET la durée des modes aigus
+- `dry` (0) : part du coup qui reste audible tel quel
+
+Le coup règle le geste : une rafale de bruit blanc de quelques millisecondes est un maillet dur,
+plus longue et filtrée c'est un maillet doux, du bruit brun tenu c'est un frottement, une note
+tenue fait chanter l'objet.
 
 ## Dans Godot 4
 
