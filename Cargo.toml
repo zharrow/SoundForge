@@ -1,0 +1,16 @@
+[package]
+name = "sound-forge"
+version = "0.2.0"
+edition = "2024"
+description = "Moteur de synthèse d'effets sonores pour jeux vidéo"
+
+[features]
+# Active la (dé)sérialisation JSON et le schéma des sons, utilisés par le serveur MCP.
+schema = ["dep:serde", "dep:schemars"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+schemars = { version = "1", optional = true }
+
+[workspace]
+members = ["mcp"]
