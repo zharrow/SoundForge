@@ -1,0 +1,25 @@
+{
+  "name": "sound-forge-app",
+  "private": true,
+  "version": "0.6.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "check": "tsc --noEmit",
+    "tauri": "tauri",
+    "test": "vitest run",
+    "banc": "sound-forge render impact --out dev/banc && sound-forge spectrogram dev/banc/impact.wav dev/banc/apercu.png && vite --port 1499",
+    "install-app": "tauri build && rm -rf \"$HOME/Applications/Sound Forge.app\" && mkdir -p \"$HOME/Applications\" && cp -R \"src-tauri/target/release/bundle/macos/Sound Forge.app\" \"$HOME/Applications/\""
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.3",
+    "@tauri-apps/plugin-dialog": "^2.8.2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^3.2.7"
+  }
+}

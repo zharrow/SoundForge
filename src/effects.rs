@@ -137,33 +137,63 @@ fn scaled_length(tuning: usize, sample_rate: f32) -> usize {
     ((tuning as f32 * sample_rate / 44_100.0) as usize).max(1)
 }
 
-fn apply_reverb(buffer: &mut [f32], reverb: Reverb, sample_rate: f32) {
-    let mut combs: Vec<Comb> = COMB_TUNING
-        .iter()
-        .map(|&t| Comb {
-            buffer: vec![0.0; scaled_length(t, sample_rate)],
-            index: 0,
-            store: 0.0,
-        })
-        .collect();
-    let mut allpasses: Vec<AllPass> = ALLPASS_TUNING
-        .iter()
-        .map(|&t| AllPass {
-            buffer: vec![0.0; scaled_length(t, sample_rate)],
-            index: 0,
-        })
-        .collect();
-    let feedback = 0.7 + 0.28 * reverb.room.clamp(0.0, 1.0);
-    let damping = reverb.damping.clamp(0.0, 1.0);
+/// Les filtres d'un canal de Freeverb ; `spread` décale leurs longueurs (canal droit) pour l'effet stéréo.
+struct Bank {
+    combs: Vec<Comb>,
+    allpasses: Vec<AllPass>,
+}
 
-    for sample in buffer.iter_mut() {
-        let input = *sample * INPUT_GAIN;
-        let mut wet: f32 = combs
+impl Bank {
+    fn new(sample_rate: f32, spread: usize) -> Self {
+        Self {
+            combs: COMB_TUNING
+                .iter()
+                .map(|&t| Comb {
+                    buffer: vec![0.0; scaled_length(t + spread, sample_rate)],
+                    index: 0,
+                    store: 0.0,
+                })
+                .collect(),
+            allpasses: ALLPASS_TUNING
+                .iter()
+                .map(|&t| AllPass {
+                    buffer: vec![0.0; scaled_length(t + spread, sample_rate)],
+                    index: 0,
+                })
+                .collect(),
+        }
+    }
+
+    fn process(&mut self, input: f32, feedback: f32, damping: f32) -> f32 {
+        let wet: f32 = self
+            .combs
             .iter_mut()
-            .map(|c| c.process(input, feedback, damping))
+            .map(|c| c.process(input * INPUT_GAIN, feedback, damping))
             .sum();
-        wet = allpasses.iter_mut().fold(wet, |acc, a| a.process(acc));
-        *sample += wet * WET_GAIN * reverb.mix;
+        self.allpasses.iter_mut().fold(wet, |acc, a| a.process(acc)) * WET_GAIN
+    }
+}
+
+fn settings(reverb: Reverb) -> (f32, f32) {
+    (0.7 + 0.28 * reverb.room.clamp(0.0, 1.0), reverb.damping.clamp(0.0, 1.0))
+}
+
+fn apply_reverb(buffer: &mut [f32], reverb: Reverb, sample_rate: f32) {
+    let mut bank = Bank::new(sample_rate, 0);
+    let (feedback, damping) = settings(reverb);
+    for sample in buffer.iter_mut() {
+        *sample += bank.process(*sample, feedback, damping) * reverb.mix;
+    }
+}
+
+/// Réverbération stéréo (Freeverb, canal droit décalé de 23 échantillons) : `send` est ce qu'on envoie dans la
+/// pièce, la queue s'ajoute à `left` et `right`.
+pub fn reverb_stereo(send: &[f32], left: &mut [f32], right: &mut [f32], reverb: Reverb, sample_rate: f32) {
+    let mut banks = (Bank::new(sample_rate, 0), Bank::new(sample_rate, 23));
+    let (feedback, damping) = settings(reverb);
+    for (i, &input) in send.iter().enumerate() {
+        left[i] += banks.0.process(input, feedback, damping) * reverb.mix;
+        right[i] += banks.1.process(input, feedback, damping) * reverb.mix;
     }
 }
 

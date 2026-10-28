@@ -23,9 +23,38 @@ pub fn encode(data: &[u8]) -> String {
     out
 }
 
+/// Décode du base64 standard (les espaces et retours à la ligne sont ignorés).
+pub fn decode(text: &str) -> Result<Vec<u8>, String> {
+    let mut out = Vec::with_capacity(text.len() / 4 * 3);
+    let mut group = 0_u32;
+    let mut bits = 0;
+    for byte in text.bytes().filter(|b| !b.is_ascii_whitespace() && *b != b'=') {
+        let value = ALPHABET
+            .iter()
+            .position(|&c| c == byte)
+            .ok_or("Base64 invalide.")? as u32;
+        group = (group << 6) | value;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((group >> bits) as u8);
+            group &= (1 << bits) - 1;
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::encode;
+    use super::{decode, encode};
+
+    #[test]
+    fn decode_reverses_encode() {
+        for input in ["", "f", "fo", "foo", "foob", "fooba", "foobar"] {
+            assert_eq!(decode(&encode(input.as_bytes())).unwrap(), input.as_bytes());
+        }
+        assert!(decode("@@").is_err());
+    }
 
     #[test]
     fn rfc4648_vectors() {

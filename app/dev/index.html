@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sound Forge (banc d essai)</title>
+  <link rel="stylesheet" href="/src/styles.css">
+  <!-- Banc d essai : copie de ../index.html, plus le faux côté natif. À garder alignée sur ../index.html. -->
+  <script src="/dev/mock.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div id="mode-switch" class="segmented mode-switch"></div>
+      <div id="topbar" class="topbar-part"></div>
+      <div id="music-topbar" class="topbar-part" hidden></div>
+    </header>
+    <aside id="library" class="library"></aside>
+    <main id="main" class="main">
+      <section id="preview" class="preview"></section>
+      <section id="layers" class="layers">
+        <div id="assist" class="assist">
+          <section id="macros" class="panel-card macros"></section>
+          <section id="variations" class="panel-card variations"></section>
+        </div>
+        <div id="layer-list"></div>
+      </section>
+    </main>
+    <aside id="inspector" class="inspector"></aside>
+    <aside id="music-library" class="library" hidden></aside>
+    <main id="music-main" class="main music-main" hidden>
+      <section id="piece-bar" class="piece-bar"></section>
+      <section id="music-tracks" class="music-tracks"></section>
+      <section id="music-roll"></section>
+    </main>
+    <aside id="music-inspector" class="inspector" hidden></aside>
+    <footer id="status" class="status"></footer>
+  </div>
+  <dialog id="name-dialog" class="dialog">
+    <form method="dialog">
+      <h2>Enregistrer sous</h2>
+      <p class="muted">Nom de base des fichiers : <code>nom.json</code> et <code>nom.wav</code>, ou <code>nom_01.wav</code>… pour des variantes.</p>
+      <input type="text" spellcheck="false" autocomplete="off">
+      <p class="error"></p>
+      <div class="dialog-actions">
+        <button class="button" value="cancel" formnovalidate>Annuler</button>
+        <button class="button primary" value="ok">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

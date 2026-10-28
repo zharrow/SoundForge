@@ -22,6 +22,40 @@ pub fn write_wav(path: &Path, samples: &[f32], sample_rate: u32) -> io::Result<(
     writer.flush()
 }
 
+/// WAV stéréo 16 bits (musique) : canaux entrelacés.
+pub fn encode_wav_stereo(left: &[f32], right: &[f32], sample_rate: u32) -> Vec<u8> {
+    let frames = left.len().min(right.len());
+    let data_size = (frames * 4) as u32;
+    let mut bytes = Vec::with_capacity(44 + frames * 4);
+    bytes.extend_from_slice(b"RIFF");
+    bytes.extend_from_slice(&(HEADER_SIZE + data_size).to_le_bytes());
+    bytes.extend_from_slice(b"WAVEfmt ");
+    bytes.extend_from_slice(&16_u32.to_le_bytes());
+    bytes.extend_from_slice(&FORMAT_PCM.to_le_bytes());
+    bytes.extend_from_slice(&2_u16.to_le_bytes());
+    bytes.extend_from_slice(&sample_rate.to_le_bytes());
+    bytes.extend_from_slice(&(sample_rate * 4).to_le_bytes());
+    bytes.extend_from_slice(&4_u16.to_le_bytes());
+    bytes.extend_from_slice(&BITS_PER_SAMPLE.to_le_bytes());
+    bytes.extend_from_slice(b"data");
+    bytes.extend_from_slice(&data_size.to_le_bytes());
+    for i in 0..frames {
+        bytes.extend_from_slice(&to_pcm16(left[i]).to_le_bytes());
+        bytes.extend_from_slice(&to_pcm16(right[i]).to_le_bytes());
+    }
+    bytes
+}
+
+/// Le même fichier qu'`write_wav`, en mémoire : l'éditeur l'écoute sans passer par le disque.
+pub fn encode_wav(samples: &[f32], sample_rate: u32) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(HEADER_SIZE as usize + 8 + samples.len() * 2);
+    write_header(&mut bytes, samples.len() as u32, sample_rate).expect("écriture en mémoire");
+    for &sample in samples {
+        bytes.extend_from_slice(&to_pcm16(sample).to_le_bytes());
+    }
+    bytes
+}
+
 fn write_header(writer: &mut impl Write, sample_count: u32, sample_rate: u32) -> io::Result<()> {
     let block_align = CHANNELS * BITS_PER_SAMPLE / 8;
     let data_size = sample_count * u32::from(block_align);

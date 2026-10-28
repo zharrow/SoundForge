@@ -1,6 +1,6 @@
 [package]
 name = "sound-forge"
-version = "0.4.0"
+version = "0.6.0"
 edition = "2024"
 description = "Moteur de synthèse d'effets sonores pour jeux vidéo"
 
@@ -15,3 +15,5 @@ serde_json = { version = "1", optional = true }
 
 [workspace]
 members = ["mcp"]
+# L'app Tauri a son propre verrou de dépendances et son dossier target (comme Pixel Forge).
+exclude = ["app/src-tauri"]

@@ -12,6 +12,10 @@ pub mod effects;
 pub mod envelope;
 pub mod fft;
 pub mod filter;
+#[cfg(feature = "schema")]
+pub mod instruments;
+#[cfg(feature = "schema")]
+pub mod music;
 pub mod mutate;
 pub mod oscillator;
 pub mod png;
@@ -22,6 +26,7 @@ pub mod render;
 pub mod report;
 pub mod resonator;
 pub mod rng;
+pub mod sample;
 pub mod sound;
 pub mod spectrogram;
 pub mod wav;
@@ -39,6 +44,7 @@ pub use render::{SAMPLE_RATE, render};
 pub use report::Report;
 pub use resonator::{Material, Mode, Resonator};
 pub use rng::Rng;
+pub use sample::{ROOT_HZ, RECORDINGS_DIR, SampleSource};
 pub use sound::{Layer, Sound};
-pub use wav::{read_wav, write_wav};
-pub use workspace::{ExportOptions, Workspace};
+pub use wav::{encode_wav, encode_wav_stereo, read_wav, write_wav};
+pub use workspace::{ExportOptions, Variant, Workspace, render_variant, variants};

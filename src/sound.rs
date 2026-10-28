@@ -66,6 +66,9 @@ impl Default for Unison {
     derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
 )]
 pub struct Layer {
+    /// Rôle de la couche (« attaque », « corps », « queue »…), pour s'y retrouver. Sans effet sur le son.
+    #[cfg_attr(feature = "schema", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub name: Option<String>,
     pub waveform: Waveform,
     /// Hauteur en Hz. Ignorée par les bruits : pour eux, c'est le filtre qui donne la couleur.
     pub pitch: Sweep,
@@ -93,6 +96,7 @@ fn default_gain() -> f32 {
 impl Layer {
     pub fn new(waveform: Waveform, pitch: Sweep, envelope: Adsr) -> Self {
         Self {
+            name: None,
             waveform,
             pitch,
             envelope,

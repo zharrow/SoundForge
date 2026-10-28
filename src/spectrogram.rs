@@ -36,6 +36,13 @@ pub fn render_png(samples: &[f32], sample_rate: u32) -> Vec<u8> {
     image.to_png()
 }
 
+/// Le spectrogramme seul (480 × 240), pour un éditeur qui dessine lui-même la forme d'onde.
+pub fn render_spectrum_png(samples: &[f32], sample_rate: u32) -> Vec<u8> {
+    let mut image = RgbImage::new(WIDTH, SPECTRUM_HEIGHT, BACKGROUND);
+    draw_spectrogram(&mut image, samples, sample_rate, 0);
+    image.to_png()
+}
+
 fn column_range(samples: &[f32], column: usize) -> &[f32] {
     let start = column * samples.len() / WIDTH;
     let end = ((column + 1) * samples.len() / WIDTH)

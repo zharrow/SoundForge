@@ -88,7 +88,7 @@ fn make_voices(layer: &Layer, rng: &mut Rng) -> Vec<Voice> {
             };
             let cents = spread * layer.unison.detune_cents;
             Voice {
-                oscillator: Oscillator::new(layer.waveform, rng.unit()),
+                oscillator: Oscillator::new(layer.waveform.clone(), rng.unit()),
                 ratio: 2_f32.powf(cents / 1200.0),
             }
         })

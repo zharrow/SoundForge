@@ -1,0 +1,25 @@
+[package]
+name = "sound-forge-app"
+version = "0.6.0"
+description = "Éditeur d'effets sonores, pilotable par Claude Code"
+edition = "2021"
+
+[lib]
+name = "sound_forge_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+sound-forge = { path = "../..", features = ["schema"] }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tiny_http = "0.12"
+uuid = { version = "1", features = ["v4"] }
+
+[profile.dev.package.sound-forge]
+# Le rendu se refait à chaque retouche : même en développement, le moteur doit être rapide.
+opt-level = 3

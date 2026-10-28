@@ -3,8 +3,9 @@
 use std::f32::consts::TAU;
 
 use crate::rng::Rng;
+use crate::sample::{SamplePlayer, SampleSource};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(
     feature = "schema",
     derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)
@@ -21,6 +22,9 @@ pub enum Waveform {
     WhiteNoise,
     /// Bruit grave et sourd, idéal pour les grondements et explosions.
     BrownNoise,
+    /// Un enregistrement du dossier de travail (une voix…). La hauteur règle sa vitesse de lecture :
+    /// 440 Hz = vitesse d'origine, 880 Hz = une octave plus haut.
+    Sample(SampleSource),
 }
 
 #[derive(Debug, Clone)]
@@ -28,19 +32,29 @@ pub struct Oscillator {
     waveform: Waveform,
     phase: f32,
     brown_state: f32,
+    /// Lecteur d'un enregistrement : il part toujours du début, sans phase aléatoire.
+    player: Option<SamplePlayer>,
 }
 
 impl Oscillator {
     pub fn new(waveform: Waveform, phase: f32) -> Self {
+        let player = match &waveform {
+            Waveform::Sample(source) => Some(SamplePlayer::new(source)),
+            _ => None,
+        };
         Self {
             waveform,
             phase: phase.fract(),
             brown_state: 0.0,
+            player,
         }
     }
 
     /// Produit l'échantillon suivant à la fréquence `freq` (Hz).
     pub fn next(&mut self, freq: f32, sample_rate: f32, rng: &mut Rng) -> f32 {
+        if let Some(player) = &mut self.player {
+            return player.next(freq, sample_rate);
+        }
         let step = (freq / sample_rate).clamp(0.0, 0.5);
         let value = self.sample(step, rng);
         self.phase = (self.phase + step).fract();
@@ -49,13 +63,14 @@ impl Oscillator {
 
     fn sample(&mut self, step: f32, rng: &mut Rng) -> f32 {
         let phase = self.phase;
-        match self.waveform {
+        match &self.waveform {
             Waveform::Sine => (phase * TAU).sin(),
             Waveform::Triangle => 1.0 - 4.0 * (phase - 0.5).abs(),
             Waveform::Saw => 2.0 * phase - 1.0 - poly_blep(phase, step),
-            Waveform::Square { duty } => square(phase, duty, step),
+            Waveform::Square { duty } => square(phase, *duty, step),
             Waveform::WhiteNoise => rng.bipolar(),
             Waveform::BrownNoise => self.next_brown(rng),
+            Waveform::Sample(_) => 0.0,
         }
     }
 
@@ -111,7 +126,7 @@ mod tests {
         ];
         for waveform in all {
             assert!(
-                render(waveform).iter().all(|s| s.abs() <= 1.1),
+                render(waveform.clone()).iter().all(|s| s.abs() <= 1.1),
                 "{waveform:?}"
             );
         }
